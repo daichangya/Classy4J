@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Layout, Button, Input, Space, Card, List, Tag, message } from 'antd';
-import { WebSocketService, ConnectionStatus } from '../services/websocket';
-import { MessageType } from '../types/Message';
+import { WebSocketService, ConnectionStatus } from '../features/chat/services/websocket';
+import { MessageType } from '../features/chat/types/Message';
 
 const { Content } = Layout;
 const { TextArea } = Input;

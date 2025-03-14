@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Layout } from 'antd';
 import styled from 'styled-components';
 import Sidebar from './components/Sidebar';
-import Chat from './pages/Chat';
+import Chat from './features/chat/pages/Chat';
 import Agents from './pages/Agents';
 import Tools from './pages/Tools';
 import Workflows from './pages/Workflows';
