@@ -1,12 +1,10 @@
 import axios from 'axios';
 import { Agent, Tool, Workflow } from '../types';
-import { ChatMessage } from '../types/Message';
-import { Conversation, ConversationPreview, CreateConversationDto } from '../types/Conversation';
 import { message } from 'antd';
 
 const API_BASE_URL = 'http://localhost:8080';
 
-const api = axios.create({
+export const api = axios.create({
     baseURL: API_BASE_URL,
     headers: {
         'Content-Type': 'application/json',
@@ -47,31 +45,7 @@ api.interceptors.response.use(
     }
 );
 
-// 聊天相关API
-export const chatApi = {
-    getHistory: (sender: string, receiver: string) =>
-        api.get<ChatMessage[]>(`/api/chat/history?sender=${sender}&receiver=${receiver}`),
-    sendMessage: (message: ChatMessage) =>
-        api.post<ChatMessage>('/api/chat/send', message),
-};
 
-// 会话相关API
-export const conversationApi = {
-    create: (conversation: CreateConversationDto) =>
-        api.post<Conversation>('/api/conversations/create', conversation),
-    get: (id: number) =>
-        api.get<Conversation>(`/api/conversations/${id}`),
-    getAll: () =>
-        api.get<ConversationPreview[]>('/api/conversations/getAll'),
-    update: (id: number, conversation: Conversation) =>
-        api.put<Conversation>(`/api/conversations/${id}`, conversation),
-    delete: (id: number) =>
-        api.delete(`/api/conversations/${id}`),
-    getMessages: (id: number) =>
-        api.get<ChatMessage[]>(`/api/conversations/${id}/messages`),
-    addMessage: (id: number, message: ChatMessage) =>
-        api.post<ChatMessage>(`/api/conversations/${id}/messages`, message),
-};
 
 // 代理相关API
 export const agentApi = {
