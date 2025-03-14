@@ -75,6 +75,7 @@ public class ChatServiceImpl implements ChatService {
         } catch (Exception e) {
             // 如果AI处理失败，发送错误消息
             ChatMessage errorMessage = new ChatMessage();
+            errorMessage.setConversationId(message.getConversationId());
             errorMessage.setSender("ai");
             errorMessage.setReceiver(message.getSender());
             errorMessage.setContent("抱歉，处理您的消息时出现错误。");
