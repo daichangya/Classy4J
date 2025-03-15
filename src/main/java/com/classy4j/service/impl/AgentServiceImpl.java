@@ -3,13 +3,14 @@ package com.classy4j.service.impl;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
+import org.springframework.ai.chat.prompt.Prompt;
 
 import com.classy4j.model.Agent;
 import com.classy4j.repository.AgentRepository;
 import com.classy4j.service.AgentService;
 
-import dev.langchain4j.model.chat.ChatLanguageModel;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -17,7 +18,7 @@ import lombok.RequiredArgsConstructor;
 public class AgentServiceImpl implements AgentService {
 
     private final AgentRepository agentRepository;
-    private final ChatLanguageModel chatModel;
+    private final ChatClient chatClient;
 
     @Override
     public Agent createAgent(Agent agent) {
@@ -59,10 +60,9 @@ public class AgentServiceImpl implements AgentService {
         agentRepository.save(agent);
 
         try {
-            // TODO: 实现工作流执行逻辑
-            String prompt = String.format("Execute task: %s with parameters: %s using tools: %s",
+            String promptText = String.format("Execute task: %s with parameters: %s using tools: %s",
                     task, parameters, agent.getTools());
-            String result = chatModel.generate(prompt);
+            String result = chatClient.prompt(promptText).call().content();
 
             agent.setStatus(Agent.AgentStatus.IDLE);
             agentRepository.save(agent);

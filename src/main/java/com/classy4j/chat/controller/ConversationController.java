@@ -4,13 +4,13 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -20,6 +20,7 @@ import com.classy4j.chat.model.Conversation;
 import com.classy4j.chat.service.ConversationService;
 
 import lombok.RequiredArgsConstructor;
+import reactor.core.publisher.Flux;
 
 @RestController
 @RequiredArgsConstructor
@@ -46,11 +47,6 @@ public class ConversationController {
         return conversationService.getAllConversations();
     }
 
-    @PutMapping("/{id}")
-    public Conversation updateConversation(@PathVariable Long id, @RequestBody Conversation conversation) {
-        return conversationService.updateConversation(id, conversation);
-    }
-
     @DeleteMapping("/{id}")
     public void deleteConversation(@PathVariable Long id) {
         conversationService.deleteConversation(id);
@@ -70,9 +66,11 @@ public class ConversationController {
         }
     }
 
-    @PostMapping("/{id}/messages")
-    public void addMessageToConversation(@PathVariable Long id, @RequestBody ChatMessage message) {
-        conversationService.addMessageToConversation(id, message);
+    @PostMapping(path = "/{id}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<String> streamChatResponse(
+            @PathVariable Long id,
+            @RequestBody ChatMessage message) {
+        return conversationService.streamChatResponse(id, message);
     }
 }
 
@@ -88,4 +86,4 @@ class ErrorResponse {
     // Getters
     public String getMessage() { return message; }
     public String getDetails() { return details; }
-} 
+}

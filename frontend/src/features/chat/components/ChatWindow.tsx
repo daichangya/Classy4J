@@ -3,7 +3,6 @@ import { Input, Button, message, Avatar, Space, Tag } from 'antd';
 import { SendOutlined, RobotOutlined, UserOutlined } from '@ant-design/icons';
 import styled from 'styled-components';
 import Typewriter from 'typewriter-effect';
-import { WebSocketService, ConnectionStatus } from '../services/websocket';
 import { ChatMessage, MessageType } from '../types/Message';
 import { conversationApi } from '../services/api';
 
@@ -89,6 +88,20 @@ const MessageBubble = styled.div<{ isSelf: boolean }>`
   &:hover {
     transform: translateY(-1px);
   }
+  
+  .typing-cursor {
+    display: inline-block;
+    width: 2px;
+    height: 16px;
+    background-color: currentColor;
+    margin-left: 2px;
+    animation: blink 1s step-end infinite;
+  }
+  
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
 `;
 
 const MessageWrapper = styled.div<{ isSelf: boolean }>`
@@ -146,8 +159,8 @@ interface ChatWindowProps {
 const ChatWindow: React.FC<ChatWindowProps> = ({ currentUser, receiver, conversationId }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
-  const [wsService] = useState(() => new WebSocketService());
   const [isTyping, setIsTyping] = useState(false);
+  const [streamingMessage, setStreamingMessage] = useState<ChatMessage | null>(null);
   const [suggestions] = useState(['你好，我需要帮助', '请介绍一下你自己', '你能做什么?']);
   const messageListRef = useRef<HTMLDivElement>(null);
 
@@ -162,51 +175,97 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ currentUser, receiver, conversa
   }, [conversationId]);
 
   useEffect(() => {
-    const loadAndConnect = async () => {
-      await loadMessageHistory();
-      wsService.onMessage((chatMessage: ChatMessage) => {
-        console.log('收到 WebSocket 消息:', chatMessage);
-        if (chatMessage.conversationId === conversationId) {
-          console.log('消息属于当前会话，准备更新界面');
-          setMessages(prev => {
-            console.log('当前消息列表:', prev);
-            return [...prev, chatMessage];
-          });
-          scrollToBottom();
-          setIsTyping(false);
-        } else {
-          console.log('消息不属于当前会话，忽略');
-        }
-      });
-      wsService.onConnectionStatusChange((status: ConnectionStatus) => {
-        console.log('WebSocket 连接状态变更:', status);
-        if (status === 'connected') {
-          console.log('WebSocket 已连接');
-        } else if (status === 'disconnected') {
-          console.log('聊天连接断开，正在重试...');
-        }
-      });
-      wsService.subscribeToChat(currentUser);
-    };
-    loadAndConnect();
-    return () => {
-      wsService.disconnect();
-    };
-  }, [currentUser, conversationId, loadMessageHistory]);
+    loadMessageHistory();
+  }, [loadMessageHistory]);
 
   const scrollToBottom = () => {
     if (messageListRef.current) {
       messageListRef.current.scrollTop = messageListRef.current.scrollHeight;
-      console.log('滚动到底部');
+    }
+  };
+
+  const handleStreamResponse = async (response: Response, retryCount = 0): Promise<void> => {
+    const maxRetries = 3;
+    const retryDelay = 1000;
+
+    try {
+      if (!response.ok) {
+        throw new Error(`Stream request failed: ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('Failed to get reader');
+      }
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          console.log('Stream reading completed');
+          break;
+        }
+
+        const text = new TextDecoder().decode(value);
+        console.log('Received raw text:', text);
+        const lines = text.split('\n').filter(line => line.trim() !== '');
+        console.log('Filtered lines:', lines);
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            console.log('Parsed data:', data);
+            if (data === '[DONE]') {
+              console.log('Received [DONE] signal');
+              if (streamingMessage) {
+                console.log('Adding final message:', streamingMessage);
+                setMessages(prev => [...prev, streamingMessage]);
+                // 确保消息被添加到列表后再清除状态
+                setTimeout(() => {
+                  setIsTyping(false);
+                  setStreamingMessage(null);
+                }, 0);
+              } else {
+                setIsTyping(false);
+              }
+              break;
+            }
+            try {
+              const content = JSON.parse(data);
+              console.log('Parsed content:', content);
+              setStreamingMessage((prev: ChatMessage | null) => {
+                const newMessage = {
+                  ...prev!,
+                  content: prev ? prev.content + content.content : content.content
+                };
+                console.log('Updated streaming message:', newMessage);
+                return newMessage;
+              });
+            } catch (e) {
+              console.error('Failed to parse streaming data:', e);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      if (retryCount < maxRetries) {
+        console.warn(`Retrying stream connection (${retryCount + 1}/${maxRetries})...`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        const newResponse = await conversationApi.streamChat(conversationId, {
+          ...streamingMessage!,
+          content: streamingMessage?.content || ''
+        });
+        return handleStreamResponse(newResponse, retryCount + 1);
+      }
+      message.error('聊天连接失败，请稍后重试');
+      setIsTyping(false);
+      setStreamingMessage(null);
     }
   };
 
   const handleSend = async () => {
-    if (!inputValue.trim()) {
-      return;
-    }
+    if (!inputValue.trim()) return;
 
-    const newMessage: ChatMessage = {
+    const newMessage = {
       content: inputValue.trim(),
       sender: currentUser,
       receiver: receiver,
@@ -216,95 +275,96 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ currentUser, receiver, conversa
       conversationId: conversationId
     };
 
+    setMessages(prev => [...prev, newMessage]);
+    setInputValue('');
+    scrollToBottom();
+
     try {
-      console.log('准备发送消息:', newMessage);
-      setMessages(prev => [...prev, newMessage]);
-      setInputValue('');
-      scrollToBottom();
-      await conversationApi.addMessage(conversationId, newMessage);
+      setIsTyping(true);
+      const response = await conversationApi.streamChat(conversationId, newMessage);
+      await handleStreamResponse(response);
     } catch (error) {
-      console.error('发送消息失败:', error);
       message.error('发送消息失败');
+      setIsTyping(false);
     }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  const handleSuggestionClick = (suggestion: string) => {
+    setInputValue(suggestion);
   };
 
   return (
     <ChatContainer>
       <MessageList ref={messageListRef}>
-        {messages.map((msg, index) => {
-          const isSelf = msg.sender === currentUser;
-          const showTime = index === 0 || 
-            (msg.timestamp && messages[index - 1]?.timestamp && 
-            new Date(msg.timestamp || '').getTime() - new Date(messages[index - 1].timestamp || '').getTime() > 5 * 60 * 1000);
-
-          return (
-            <React.Fragment key={index}>
-              {showTime && (
-                <MessageTime>{new Date(msg.timestamp || '').toLocaleString()}</MessageTime>
-              )}
-              <MessageWrapper isSelf={isSelf}>
-                <Avatar
-                  className="avatar"
-                  icon={isSelf ? <UserOutlined /> : <RobotOutlined />}
-                  style={{
-                    backgroundColor: isSelf ? '#1890ff' : '#f56a00',
-                  }}
-                />
-                <MessageBubble isSelf={isSelf}>
-                  {isSelf ? (
-                    msg.content
-                  ) : (
-                    <Typewriter
-                      onInit={(typewriter) => {
-                        typewriter
-                          .typeString(msg.content)
-                          .start();
-                      }}
-                      options={{
-                        delay: 30,
-                        cursor: isTyping ? '|' : '',
-                        autoStart: false
-                      }}
-                    />
-                  )}
-                </MessageBubble>
-              </MessageWrapper>
-            </React.Fragment>
-          );
-        })}
+        {messages.map((msg, index) => (
+          <React.Fragment key={index}>
+            <MessageWrapper isSelf={msg.sender === currentUser}>
+              <Avatar
+                className="avatar"
+                icon={msg.sender === currentUser ? <UserOutlined /> : <RobotOutlined />}
+              />
+              <MessageBubble isSelf={msg.sender === currentUser}>
+                {msg.content}
+              </MessageBubble>
+            </MessageWrapper>
+          </React.Fragment>
+        ))}
+        {streamingMessage && (
+          <MessageWrapper isSelf={false}>
+            <Avatar className="avatar" icon={<RobotOutlined />} />
+            <MessageBubble isSelf={false}>
+              <Typewriter
+                options={{
+                  strings: [streamingMessage.content],
+                  autoStart: true,
+                  delay: 30,
+                  cursor: ''
+                }}
+              />
+            </MessageBubble>
+          </MessageWrapper>
+        )}
       </MessageList>
       <InputArea>
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <Input
+        <Space.Compact style={{ width: '100%' }}>
+          <Input.TextArea
             value={inputValue}
-            onChange={e => setInputValue(e.target.value)}
-            onPressEnter={handleSend}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyPress={handleKeyPress}
             placeholder="输入消息..."
-            style={{ marginRight: 8 }}
+            autoSize={{ minRows: 1, maxRows: 4 }}
           />
-          <SuggestionsWrapper>
-            {suggestions.map((suggestion, index) => (
-              <Tag
-                key={index}
-                color="blue"
-                style={{ cursor: 'pointer' }}
-                onClick={() => setInputValue(suggestion)}
-              >
-                {suggestion}
-              </Tag>
-            ))}
-          </SuggestionsWrapper>
-        </Space>
-        <Button
-          type="primary"
-          icon={<SendOutlined />}
-          onClick={handleSend}
-        >
-          发送
-        </Button>
+          <Button
+            type="primary"
+            icon={<SendOutlined />}
+            onClick={handleSend}
+            loading={isTyping}
+          >
+            发送
+          </Button>
+        </Space.Compact>
+        <SuggestionsWrapper>
+          {suggestions.map((suggestion, index) => (
+            <Tag
+              key={index}
+              color="blue"
+              style={{ cursor: 'pointer' }}
+              onClick={() => handleSuggestionClick(suggestion)}
+            >
+              {suggestion}
+            </Tag>
+          ))}
+        </SuggestionsWrapper>
       </InputArea>
     </ChatContainer>
   );
 };
 
-export default ChatWindow; 
+export default ChatWindow;

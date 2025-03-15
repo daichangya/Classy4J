@@ -7,7 +7,6 @@ import Chat from './features/chat/pages/Chat';
 import Agents from './pages/Agents';
 import Tools from './pages/Tools';
 import Workflows from './pages/Workflows';
-import WebSocketTest from './pages/WebSocketTest';
 
 const { Content } = Layout;
 
@@ -42,7 +41,6 @@ const App: React.FC = () => {
             <Route path="/agents" element={<Agents />} />
             <Route path="/tools" element={<Tools />} />
             <Route path="/workflows" element={<Workflows />} />
-            <Route path="/websocket-test" element={<WebSocketTest />} />
           </Routes>
         </StyledContent>
       </StyledLayout>

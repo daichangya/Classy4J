@@ -1,5 +1,6 @@
 package com.classy4j.chat.service.impl;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -13,6 +14,7 @@ import com.classy4j.chat.service.ChatService;
 import com.classy4j.chat.service.ConversationService;
 
 import lombok.RequiredArgsConstructor;
+import reactor.core.publisher.Flux;
 
 @Service
 @RequiredArgsConstructor
@@ -41,15 +43,6 @@ public class ConversationServiceImpl implements ConversationService {
     }
 
     @Override
-    public Conversation updateConversation(Long id, Conversation conversation) {
-        Conversation existingConversation = getConversation(id);
-        existingConversation.setTitle(conversation.getTitle());
-        existingConversation.setParticipants(conversation.getParticipants());
-        existingConversation.setUpdatedAt(LocalDateTime.now());
-        return conversationRepository.save(existingConversation);
-    }
-
-    @Override
     public void deleteConversation(Long id) {
         conversationRepository.deleteById(id);
     }
@@ -63,21 +56,15 @@ public class ConversationServiceImpl implements ConversationService {
     }
 
     @Override
-    public void addMessageToConversation(Long conversationId, ChatMessage message) {
+    public Flux<String> streamChatResponse(Long conversationId, ChatMessage message) {
         // 验证会话是否存在
-        Conversation conversation = getConversation(conversationId);
+        getConversation(conversationId);
         
         // 设置消息的会话ID
         message.setConversationId(conversationId);
-        
-        // 发送消息（这会同时保存消息并处理AI响应）
-        ChatMessage savedMessage = chatService.sendMessage(message);
-        
-        // 更新会话的最后消息信息
-        conversation.setLastMessage(savedMessage.getContent());
-        conversation.setLastMessageTime(savedMessage.getTimestamp());
-        conversation.setUpdatedAt(LocalDateTime.now());
-        
-        conversationRepository.save(conversation);
+        // 模拟AI响应，实际项目中应该调用AI服务
+        String response = "这是一个模拟的AI响应，用于测试流式输出功能。现在我们正在一个字一个字地输出这段文字，以模拟真实的AI响应过程。";
+        return Flux.fromArray(response.split(""))
+                .delayElements(Duration.ofMillis(100));
     }
-} 
+}

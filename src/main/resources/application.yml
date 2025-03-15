@@ -16,11 +16,3 @@ spring:
     console:
       enabled: true
       path: /h2-console
-
-ai:
-  openai:
-    api-key: 11
-    model: gpt-3.5-turbo
-  alibaba:
-    api-key: 22
-    api-secret: 33

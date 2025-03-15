@@ -1,79 +1,68 @@
-# Classy4J AI 项目
+# Classy4J
 
-这是一个基于Spring Boot和React的AI项目，集成了OpenAI和阿里云AI能力，提供智能对话、工具开发和工作流设计等功能。
-
-## 功能特性
-
-- 智能对话：支持与AI进行实时对话
-- AI代理：可以设计和配置AI代理
-- 工具开发：支持自定义工具开发和集成
-- 工作流设计：可以设计和执行AI工作流
-- MCP协议支持：实现了MCP协议的集成
+一个基于 Spring Boot 和 React 的智能对话系统。
 
 ## 技术栈
 
 ### 后端
-- Java 17
-- Spring Boot 3.2.3
-- LangChain4j
-- WebSocket
-- JPA
+- Spring Boot 3
+- Spring WebFlux
+- Spring Data JPA
+- Spring AI
 - H2 Database
+- Project Lombok
 
 ### 前端
 - React
 - TypeScript
 - Ant Design
-- WebSocket
+- Styled Components
+- React Router
+
+## 功能特性
+
+- 实时对话
+- 多会话管理
+- AI 助手集成
+- 工具调用
+- 工作流编排
+
+## 开发环境要求
+
+- JDK 17+
+- Node.js 18+
+- Maven 3.8+
 
 ## 快速开始
 
-### 环境要求
-- JDK 17+
-- Maven 3.6+
-- Node.js 16+
-
-### 配置
-在运行项目之前，需要设置以下环境变量：
+1. 克隆仓库
 ```bash
-export OPENAI_API_KEY=your_openai_api_key
-export ALIBABA_API_KEY=your_alibaba_api_key
-export ALIBABA_API_SECRET=your_alibaba_api_secret
+git clone https://github.com/yourusername/classy4j.git
+cd classy4j
 ```
 
-### 运行后端
+2. 配置环境变量
+```bash
+export OPENAI_API_KEY=your_api_key
+```
+
+3. 启动后端
 ```bash
 mvn spring-boot:run
 ```
 
-### 运行前端
+4. 启动前端
 ```bash
 cd frontend
 npm install
 npm start
 ```
 
-## API文档
-
-### WebSocket端点
-- 连接端点：`ws://localhost:8080/ws`
-- 订阅主题：`/topic/chat`
-- 发送消息：`/app/chat`
-
-### REST API
-- 待补充
-
-## 开发计划
-1. [ ] 实现基础对话功能
-2. [ ] 集成OpenAI API
-3. [ ] 集成阿里云AI
-4. [ ] 实现AI代理系统
-5. [ ] 开发工具集成框架
-6. [ ] 设计工作流系统
-7. [ ] 实现MCP协议
-
-## 贡献指南
-欢迎提交Issue和Pull Request
+5. 访问应用
+```
+http://localhost:3000
+```
 
 ## 许可证
-MIT License 
+
+MIT 

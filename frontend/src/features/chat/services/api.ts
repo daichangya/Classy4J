@@ -1,29 +1,23 @@
-import { api } from '../../../services/api';
+import axios from 'axios';
 import { ChatMessage } from '../types/Message';
-import { Conversation, ConversationPreview, CreateConversationDto } from '../types/Conversation';
+import { ConversationPreview, CreateConversationDto } from '../types/Conversation';
 
-// 聊天相关API
-export const chatApi = {
-    getHistory: (sender: string, receiver: string) =>
-        api.get<ChatMessage[]>(`/api/chat/history?sender=${sender}&receiver=${receiver}`),
-    sendMessage: (message: ChatMessage) =>
-        api.post<ChatMessage>('/api/chat/send', message),
-};
+const API_BASE = '/api';
 
-// 会话相关API
 export const conversationApi = {
-    create: (conversation: CreateConversationDto) =>
-        api.post<Conversation>('/api/conversations/create', conversation),
-    get: (id: number) =>
-        api.get<Conversation>(`/api/conversations/${id}`),
-    getAll: () =>
-        api.get<ConversationPreview[]>('/api/conversations/getAll'),
-    update: (id: number, conversation: Conversation) =>
-        api.put<Conversation>(`/api/conversations/${id}`, conversation),
-    delete: (id: number) =>
-        api.delete(`/api/conversations/${id}`),
-    getMessages: (id: number) =>
-        api.get<ChatMessage[]>(`/api/conversations/${id}/messages`),
-    addMessage: (id: number, message: ChatMessage) =>
-        api.post<ChatMessage>(`/api/conversations/${id}/messages`, message),
-}; 
+  getAll: () => axios.get<ConversationPreview[]>(`${API_BASE}/conversations/getAll`),
+  get: (id: number) => axios.get<ConversationPreview>(`${API_BASE}/conversations/${id}`),
+  create: (data: CreateConversationDto) => axios.post<ConversationPreview>(`${API_BASE}/conversations/create`, data),
+  delete: (id: number) => axios.delete(`${API_BASE}/conversations/${id}`),
+  getMessages: (conversationId: number) => axios.get<ChatMessage[]>(`${API_BASE}/conversations/${conversationId}/messages`),
+  streamChat: (conversationId: number, message: ChatMessage) => {
+    return fetch(`${API_BASE}/conversations/${conversationId}/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
+      },
+      body: JSON.stringify(message)
+    });
+  }
+};
